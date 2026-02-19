@@ -43,7 +43,7 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-from .models import TripData, NarrationOutput
+from .models import TripData, NarrationOutput, GenerationMode
 from .pipeline import TripVerbalizerPipeline, PipelineError
 from .utils.helpers import load_config, setup_logging
 
@@ -109,6 +109,14 @@ Examples:
         "--long",
         action="store_true",
         help="Generate longer, more detailed narration"
+    )
+    
+    parser.add_argument(
+        "-m", "--mode",
+        type=str,
+        choices=["narrative", "navigation_past", "summary"],
+        default="narrative",
+        help="Output mode: narrative (default), navigation_past, or summary"
     )
     
     parser.add_argument(
@@ -327,7 +335,8 @@ async def run_pipeline(args: argparse.Namespace) -> NarrationOutput:
     pipeline = TripVerbalizerPipeline(
         config=config,
         use_mock_llm=args.mock_llm,
-        long_narration=getattr(args, 'long', False)
+        long_narration=getattr(args, 'long', False),
+        mode=GenerationMode(getattr(args, 'mode', 'narrative'))
     )
     
     return await pipeline.process(
