@@ -19,8 +19,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class EventType(str, Enum):
     """Types of driving events."""
     HARD_BRAKING = "hard_braking"
+    HARD_BRAKE = "hard_brake"  # Alias
     SHARP_TURN = "sharp_turn"
     RAPID_ACCELERATION = "rapid_acceleration"
+    ACCELERATION = "acceleration"  # Alias
     OVER_SPEED = "over_speed"
     IDLE = "idle"
     COLLISION = "collision"
@@ -69,11 +71,13 @@ class VehicleConditionStatus(str, Enum):
 
 class Coordinate(BaseModel):
     """Geographic coordinate with timestamp."""
-    latitude: float = Field(..., ge=-90, le=90, description="Latitude in degrees")
-    longitude: float = Field(..., ge=-180, le=180, description="Longitude in degrees")
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude in degrees", alias="lat")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude in degrees", alias="lng")
     timestamp: datetime = Field(..., description="UTC timestamp")
     altitude: float | None = Field(None, description="Altitude in meters")
     accuracy: float | None = Field(None, ge=0, description="GPS accuracy in meters")
+    
+    model_config = {"populate_by_name": True}
     
     @property
     def lat_lng(self) -> tuple[float, float]:
@@ -97,16 +101,32 @@ class SpeedData(BaseModel):
 
 class DrivingEvent(BaseModel):
     """A driving event recorded during the trip."""
-    event_id: str = Field(..., description="Unique event identifier")
+    event_id: str | None = Field(None, description="Unique event identifier")
     event_type: EventType = Field(..., description="Type of event")
     timestamp: datetime = Field(..., description="When the event occurred")
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
     severity: EventSeverity | None = Field(None, description="Event severity")
     value: float | None = Field(None, description="Event magnitude value")
+    g_force: float | None = Field(None, description="G-force value")
     duration_seconds: float | None = Field(None, ge=0, description="Event duration")
     description: str | None = Field(None, description="Event description")
+    location: dict | None = Field(None, description="Location object with lat/lng")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    
+    model_config = {"populate_by_name": True}
+    
+    @model_validator(mode="after")
+    def extract_location(self) -> "DrivingEvent":
+        """Extract lat/lng from location object if present."""
+        if self.location and isinstance(self.location, dict):
+            if self.latitude is None:
+                self.latitude = self.location.get("lat")
+            if self.longitude is None:
+                self.longitude = self.location.get("lng")
+        if self.event_id is None:
+            self.event_id = f"evt_{self.timestamp.isoformat()}"
+        return self
 
 
 class VehicleCondition(BaseModel):
@@ -154,19 +174,30 @@ class TripData(BaseModel):
     # Events
     events: list[DrivingEvent] = Field(default_factory=list, description="Driving events")
     
-    # Vehicle and driver
-    vehicle_conditions: list[VehicleCondition] = Field(
-        default_factory=list,
+    # Vehicle and driver - support both list and dict formats
+    vehicle_conditions: list[VehicleCondition] | dict[str, Any] | None = Field(
+        default=None,
         description="Vehicle condition readings"
     )
     driver: DriverInfo | None = Field(None, description="Driver information")
+    driver_info: dict[str, Any] | None = Field(None, description="Driver info (alternate format)")
     
     # Timestamps
     start_time: datetime | None = Field(None, description="Trip start time")
     end_time: datetime | None = Field(None, description="Trip end time")
     
+    # Additional fields from alternate formats
+    start_location: dict[str, Any] | None = Field(None, description="Start location object")
+    end_location: dict[str, Any] | None = Field(None, description="End location object")
+    distance_km: float | None = Field(None, description="Trip distance in km")
+    duration_seconds: float | None = Field(None, description="Trip duration in seconds")
+    average_speed_kmh: float | None = Field(None, description="Average speed")
+    max_speed_kmh: float | None = Field(None, description="Max speed")
+    
     # Metadata
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional trip metadata")
+    
+    model_config = {"populate_by_name": True, "extra": "allow"}
     
     @model_validator(mode="after")
     def validate_trip_times(self) -> "TripData":

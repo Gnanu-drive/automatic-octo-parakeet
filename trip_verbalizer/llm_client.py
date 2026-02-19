@@ -438,6 +438,7 @@ class MockLLMClient(LLMClient):
         self.app_config = get_config()
         self._client = None
         self._mock_enabled = True
+        self.long_narration = False
         
         logger.info("🎭 Using Mock LLM Client (no actual LLM server required)")
     
@@ -454,20 +455,64 @@ class MockLLMClient(LLMClient):
         return self._generate_trip_narration(prompt)
     
     def _extract_field(self, prompt: str, field: str) -> str:
-        """Extract a field value from the prompt."""
+        """Extract a field value from the prompt (supports JSON format)."""
         import re
-        # Try patterns like "Field: value" or "- Field: value"
+        import json as json_module
+        
+        # Try to parse as JSON first
+        try:
+            if "Input:" in prompt:
+                json_str = prompt.split("Input:", 1)[1].strip()
+                data = json_module.loads(json_str)
+                
+                # Navigate nested structure
+                if field == "start":
+                    return data.get("route", {}).get("start", "")
+                elif field == "end":
+                    return data.get("route", {}).get("end", "")
+                elif field == "direction":
+                    return data.get("route", {}).get("direction", "")
+                elif field == "duration":
+                    return data.get("trip", {}).get("duration", "")
+                elif field == "distance":
+                    return data.get("trip", {}).get("distance", "")
+                elif field == "average_speed":
+                    return data.get("speed", {}).get("average", "")
+                elif field == "maximum_speed":
+                    return data.get("speed", {}).get("maximum", "")
+                elif field == "start_time":
+                    return data.get("trip", {}).get("start_time", "")
+                elif field == "major_roads":
+                    return data.get("route", {}).get("major_roads", [])
+                elif field == "events":
+                    return data.get("events", [])
+                elif field == "phases":
+                    return data.get("phases", [])
+        except (json_module.JSONDecodeError, KeyError, TypeError):
+            pass
+        
+        # Fallback to regex patterns
         patterns = [
-            rf'^{field}:\s*([^\n]+)',  # At start of line
-            rf'\n{field}:\s*([^\n]+)',  # After newline
-            rf'- {field}:\s*([^\n]+)',
-            rf'\*\*{field}\*\*:\s*([^\n]+)',
+            rf'^{field}:\s*([^\n]+)',
+            rf'\n{field}:\s*([^\n]+)',
+            rf'"{field}":\s*"([^"]+)"',
         ]
         for pattern in patterns:
             match = re.search(pattern, prompt, re.IGNORECASE | re.MULTILINE)
             if match:
                 return match.group(1).strip()
         return ""
+    
+    def _extract_json_data(self, prompt: str) -> dict:
+        """Extract full JSON data from prompt."""
+        import json as json_module
+        try:
+            if "Input:" in prompt:
+                json_str = prompt.split("Input:", 1)[1].strip()
+                return json_module.loads(json_str)
+        except (json_module.JSONDecodeError, KeyError, TypeError):
+            pass
+        return {}
     
     def _extract_events(self, prompt: str) -> list[str]:
         """Extract events from the prompt."""
@@ -483,25 +528,78 @@ class MockLLMClient(LLMClient):
     
     def _generate_trip_narration(self, prompt: str) -> str:
         """Generate a contextual trip narration using prompt data."""
-        # Extract key information from the prompt
-        # The prompt format uses "Start:" and "End:" for locations
-        start_location = self._extract_field(prompt, "Start")
-        end_location = self._extract_field(prompt, "End")
-        duration = self._extract_field(prompt, "Duration")
-        distance = self._extract_field(prompt, "Distance")
-        avg_speed = self._extract_field(prompt, "Average Speed")
-        max_speed = self._extract_field(prompt, "Maximum Speed") or self._extract_field(prompt, "Max Speed")
-        start_time = self._extract_field(prompt, "Date")
-        direction = self._extract_field(prompt, "General Direction")
+        # Try to extract from JSON format first
+        data = self._extract_json_data(prompt)
         
-        # Build contextual narration
+        if data:
+            return self._generate_from_json(data)
+        
+        # Fallback to field extraction
+        start_location = self._extract_field(prompt, "start")
+        end_location = self._extract_field(prompt, "end")
+        duration = self._extract_field(prompt, "duration")
+        distance = self._extract_field(prompt, "distance")
+        avg_speed = self._extract_field(prompt, "average_speed")
+        max_speed = self._extract_field(prompt, "maximum_speed")
+        start_time = self._extract_field(prompt, "start_time")
+        direction = self._extract_field(prompt, "direction")
+        
+        return self._build_narration(
+            start_location, end_location, duration, distance,
+            avg_speed, max_speed, start_time, direction, [], []
+        )
+    
+    def _generate_from_json(self, data: dict) -> str:
+        """Generate narration from parsed JSON data."""
+        trip = data.get("trip", {})
+        route = data.get("route", {})
+        speed = data.get("speed", {})
+        events = data.get("events", [])
+        phases = data.get("phases", [])
+        driver = data.get("driver_behavior", {})
+        
+        return self._build_narration(
+            start_location=route.get("start", ""),
+            end_location=route.get("end", ""),
+            duration=trip.get("duration", ""),
+            distance=trip.get("distance", ""),
+            avg_speed=speed.get("average", ""),
+            max_speed=speed.get("maximum", ""),
+            start_time=trip.get("start_time", ""),
+            direction=route.get("direction", ""),
+            events=events,
+            phases=phases,
+            major_roads=route.get("major_roads", []),
+            areas=route.get("areas", []),
+            driver_rating=driver.get("rating", ""),
+            driver_style=driver.get("style", ""),
+        )
+    
+    def _build_narration(
+        self,
+        start_location: str,
+        end_location: str,
+        duration: str,
+        distance: str,
+        avg_speed: str,
+        max_speed: str,
+        start_time: str,
+        direction: str,
+        events: list,
+        phases: list,
+        major_roads: list | None = None,
+        areas: list | None = None,
+        driver_rating: str = "",
+        driver_style: str = "",
+    ) -> str:
+        """Build the narration from extracted data."""
         parts = []
         
-        # Opening with start location
+        # Opening with start location and time
         if start_location and start_location.lower() != "unknown":
             parts.append(f"The journey began from {start_location}")
             if start_time:
-                parts.append(f" on {start_time}")
+                parts.append(f" at {start_time}")
         else:
             parts.append("The journey began")
         parts.append(".\n\n")
@@ -512,8 +610,17 @@ class MockLLMClient(LLMClient):
         else:
             parts.append("The driver proceeded along the route")
         
+        # Mention roads if available
+        if major_roads and len(major_roads) > 0:
+            roads = [r for r in major_roads if r]
+            if roads:
+                if len(roads) == 1:
+                    parts.append(f" via {roads[0]}")
+                else:
+                    parts.append(f" via {roads[0]} and {roads[1]}")
+        
         if distance:
-            parts.append(f", covering a distance of {distance}")
+            parts.append(f", covering {distance}")
         
         if duration:
             parts.append(f" over {duration}")
@@ -522,37 +629,125 @@ class MockLLMClient(LLMClient):
         
         # Speed information
         if avg_speed:
-            parts.append(f"The average speed maintained was {avg_speed}")
+            parts.append(f"The average speed was {avg_speed}")
             if max_speed:
-                parts.append(f", with a peak speed of {max_speed}")
-            parts.append(". ")
+                parts.append(f", reaching {max_speed} at peak")
+            parts.append(".")
+        
+        # Areas passed (for long narration)
+        if getattr(self, 'long_narration', False) and areas:
+            area_names = [a for a in areas if a]
+            if area_names:
+                parts.append(f" The route passed through {', '.join(area_names[:3])}.")
         
         parts.append("\n\n")
         
+        # Phases (for long narration)
+        if getattr(self, 'long_narration', False) and phases:
+            parts.append("The trip progressed through several phases: ")
+            phase_descs = []
+            for p in phases[:5]:
+                if isinstance(p, dict):
+                    ptype = p.get("type", "")
+                    ptime = p.get("time", "")
+                    ploc = p.get("location", "")
+                    pdesc = p.get("description", "")
+                    if ptype:
+                        if ploc and ptime:
+                            phase_descs.append(f"{ptype} at {ploc} ({ptime})")
+                        elif pdesc:
+                            phase_descs.append(pdesc)
+                        else:
+                            phase_descs.append(ptype)
+            if phase_descs:
+                parts.append(", ".join(phase_descs))
+                parts.append(".\n\n")
+        
+        # Events
+        if events:
+            event_descriptions = []
+            max_events = 5 if getattr(self, 'long_narration', False) else 3
+            for e in events[:max_events]:
+                if isinstance(e, dict):
+                    desc = e.get("description", e.get("type", ""))
+                    time = e.get("time", "")
+                    severity = e.get("severity", "")
+                    if desc:
+                        event_str = desc
+                        if time:
+                            event_str = f"{desc} at {time}"
+                        if getattr(self, 'long_narration', False) and severity:
+                            event_str += f" ({severity})"
+                        event_descriptions.append(event_str)
+            
+            if event_descriptions:
+                if getattr(self, 'long_narration', False):
+                    parts.append("Notable events during the trip included: ")
+                    parts.append("; ".join(event_descriptions))
+                    parts.append(".")
+                else:
+                    parts.append(f"During the trip, {event_descriptions[0].lower()}")
+                    if len(event_descriptions) > 1:
+                        parts.append(f", and {event_descriptions[1].lower()}")
+                    parts.append(".")
+                parts.append(" ")
+        
         # Driving behavior
-        parts.append(
-            "Throughout the trip, the driver maintained a steady pace with smooth "
-            "acceleration and gradual braking patterns. The driving style showed "
-            "good awareness of road conditions and traffic."
-        )
+        if getattr(self, 'long_narration', False):
+            if driver_style == "smooth":
+                parts.append(
+                    "The driving style was notably smooth and controlled, with gradual "
+                    "acceleration and gentle braking patterns throughout the journey. "
+                )
+            elif driver_style == "aggressive":
+                parts.append(
+                    "The driving patterns showed some aggressive tendencies, with "
+                    "rapid acceleration and hard braking at various points. "
+                )
+            else:
+                parts.append(
+                    "The driver maintained a balanced driving style, adapting to "
+                    "traffic conditions and road changes appropriately. "
+                )
+            if driver_rating:
+                parts.append(f"Overall driver rating: {driver_rating}. ")
+        else:
+            parts.append(
+                "The driver maintained steady control throughout the journey"
+            )
+            parts.append(".")
         
         parts.append("\n\n")
         
         # Ending with destination
         if end_location and end_location.lower() != "unknown":
-            parts.append(f"The journey concluded safely at {end_location}")
+            parts.append(f"The trip concluded at {end_location}")
         else:
-            parts.append("The journey concluded safely at the destination")
+            parts.append("The trip concluded at the destination")
         
-        # Add route summary if both locations are known
-        if end_location and start_location and end_location.lower() != "unknown" and start_location.lower() != "unknown":
-            # Extract just the first part of each location for brevity
+        # Add route summary if both locations are known and different
+        if (end_location and start_location and 
+            end_location.lower() != "unknown" and 
+            start_location.lower() != "unknown"):
             start_short = start_location.split(',')[0].strip()
             end_short = end_location.split(',')[0].strip()
             if start_short != end_short:
                 parts.append(f", completing the route from {start_short} to {end_short}")
         
         parts.append(".")
+        
+        # Summary for long narration
+        if getattr(self, 'long_narration', False):
+            parts.append(f"\n\nIn summary, this was a {duration or 'brief'} journey")
+            if distance:
+                parts.append(f" covering {distance}")
+            parts.append(", with the driver demonstrating ")
+            if driver_style == "smooth":
+                parts.append("safe and efficient driving habits.")
+            elif driver_style == "aggressive":
+                parts.append("room for improvement in driving smoothness.")
+            else:
+                parts.append("generally responsible driving behavior.")
         
         return "".join(parts)
     

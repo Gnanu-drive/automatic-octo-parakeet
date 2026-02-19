@@ -28,24 +28,18 @@ logger = logging.getLogger(__name__)
 
 
 # System prompt for the LLM
-SYSTEM_PROMPT = """You are an expert trip narrator who converts structured vehicle telematics data into engaging, human-readable stories.
+SYSTEM_PROMPT = """You are a mobility analyst and trip narrator.
 
-Your narration style:
-- Write in third person (e.g., "The driver started...", "The vehicle traveled...")
-- Use chronological order
-- Maintain a natural, storytelling tone
-- Include specific times, directions, road names, and locations when available
-- Describe speed trends (accelerating, cruising, slowing down)
-- Mention significant events (hard braking, sharp turns) in context
-- Keep the narration flowing and cohesive
-- Be concise but comprehensive
+Write a third-person natural English narration of the trip.
 
-Do NOT:
-- Use technical jargon
-- Include raw numbers without context
-- Make the narration sound like a data report
-- Include JSON or structured data in your response
-- Add disclaimers or meta-commentary"""
+Rules:
+- chronological
+- human readable
+- mention directions
+- mention roads/locations
+- mention major events
+- no bullet points
+- paragraph format"""
 
 
 class PromptBuilder:
@@ -93,45 +87,93 @@ class PromptBuilder:
             additional_context: Optional markdown with anomaly descriptions
             
         Returns:
-            Formatted prompt string
+            Formatted prompt string with JSON input
         """
-        sections: list[str] = []
+        # Build structured JSON summary
+        trip_json = self._build_trip_json(semantic_summary)
         
-        # Header
-        sections.append("Generate a natural language narration for the following trip:\n")
-        
-        # Trip overview
-        sections.append(self._build_trip_overview(semantic_summary.trip_summary))
-        
-        # Route description
-        sections.append(self._build_route_section(semantic_summary.route_description))
-        
-        # Trip phases
-        sections.append(self._build_phases_section(semantic_summary.phases))
-        
-        # Turns and direction changes
-        if semantic_summary.turns:
-            sections.append(self._build_turns_section(semantic_summary.turns))
-        
-        # Events
-        if semantic_summary.events:
-            sections.append(self._build_events_section(semantic_summary.events))
-        
-        # Speed anomalies
-        if semantic_summary.anomalies:
-            sections.append(self._build_anomalies_section(semantic_summary.anomalies))
-        
-        # Driver behavior
-        sections.append(self._build_behavior_section(semantic_summary.driver_behavior))
-        
-        # Additional context
+        # Add additional context if provided
         if additional_context:
-            sections.append(f"\nAdditional Notes:\n{additional_context}")
+            trip_json["additional_notes"] = additional_context
         
-        # Instructions
-        sections.append(self._build_instructions())
+        # Format as clean JSON
+        json_str = json.dumps(trip_json, indent=2, default=str)
         
-        return "\n".join(sections)
+        return f"Input:\n{json_str}"
+    
+    def _build_trip_json(self, semantic_summary: SemanticSummary) -> dict[str, Any]:
+        """Build structured JSON from semantic summary."""
+        ts = semantic_summary.trip_summary
+        rd = semantic_summary.route_description
+        db = semantic_summary.driver_behavior
+        
+        trip_json: dict[str, Any] = {
+            "trip": {
+                "id": ts.trip_id,
+                "start_time": ts.start_time,
+                "end_time": ts.end_time,
+                "duration": ts.duration,
+                "distance": ts.distance,
+            },
+            "route": {
+                "start": ts.start_location,
+                "end": ts.end_location,
+                "direction": rd.general_direction,
+                "type": rd.route_type,
+                "major_roads": rd.major_roads[:5] if rd.major_roads else [],
+                "areas": rd.cities_passed[:5] if rd.cities_passed else [],
+            },
+            "speed": {
+                "average": ts.average_speed,
+                "maximum": ts.max_speed,
+            },
+            "driver_behavior": {
+                "rating": f"{db.overall_rating}/10",
+                "hard_braking": db.hard_braking_count,
+                "sharp_turns": db.sharp_turn_count,
+                "rapid_acceleration": db.rapid_acceleration_count,
+                "style": "smooth" if db.smooth_driving else "aggressive" if db.aggressive_driving else "normal",
+            },
+        }
+        
+        # Add phases (chronological journey)
+        if semantic_summary.phases:
+            trip_json["phases"] = [
+                {
+                    "time": format_time(p.start_time, self.time_format),
+                    "type": p.phase_type.value,
+                    "location": p.start_location.short_location if p.start_location else None,
+                    "description": p.description,
+                    "avg_speed_kmh": round(p.avg_speed_kmh) if p.avg_speed_kmh else None,
+                }
+                for p in semantic_summary.phases
+            ]
+        
+        # Add events
+        if semantic_summary.events:
+            trip_json["events"] = [
+                {
+                    "time": format_time(e.timestamp, self.time_format),
+                    "type": e.event_type,
+                    "severity": e.severity.value,
+                    "description": e.description,
+                }
+                for e in semantic_summary.events
+            ]
+        
+        # Add turns
+        if semantic_summary.turns:
+            trip_json["turns"] = [
+                {
+                    "time": format_time(t.timestamp, self.time_format),
+                    "direction": t.direction.value,
+                    "angle": round(t.angle),
+                    "location": t.location_name,
+                }
+                for t in semantic_summary.turns[:10]  # Limit to 10 turns
+            ]
+        
+        return trip_json
     
     def _build_trip_overview(self, trip_summary: TripSummary) -> str:
         """Build trip overview section."""

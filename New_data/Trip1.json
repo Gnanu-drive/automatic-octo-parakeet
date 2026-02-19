@@ -1,0 +1,83 @@
+{
+  "trip_id": "23456789",
+  "vehicle_id": "XYZ5678ABCD",
+  "start_time": "2026-02-06T09:00:00Z",
+  "end_time": "2026-02-06T09:40:00Z",
+  "duration_seconds": 2400,
+  "distance_km": 32.8,
+  "fuel_consumed_liters": 3.4,
+  "average_speed_kmh": 49.2,
+  "max_speed_kmh": 95.7,
+  "start_location": {
+    "lat": 33.9684,
+    "lng": -118.2467,
+    "address": "Los Angeles, CA, USA"
+  },
+  "end_location": {
+    "lat": 33.9744,
+    "lng": -118.2633,
+    "address": "Santa Monica, CA, USA"
+  },
+  "route": [
+    {"lat": 33.9684, "lng": -118.2467, "timestamp": "2026-02-06T09:00:00Z"},
+    {"lat": 33.9700, "lng": -118.2485, "timestamp": "2026-02-06T09:01:00Z"},
+    {"lat": 33.9720, "lng": -118.2505, "timestamp": "2026-02-06T09:05:00Z"},
+    {"lat": 33.9740, "lng": -118.2520, "timestamp": "2026-02-06T09:10:00Z"},
+    {"lat": 33.9760, "lng": -118.2540, "timestamp": "2026-02-06T09:15:00Z"},
+    {"lat": 33.9775, "lng": -118.2570, "timestamp": "2026-02-06T09:20:00Z"},
+    {"lat": 33.9790, "lng": -118.2590, "timestamp": "2026-02-06T09:25:00Z"},
+    {"lat": 33.9810, "lng": -118.2610, "timestamp": "2026-02-06T09:30:00Z"},
+    {"lat": 33.9825, "lng": -118.2630, "timestamp": "2026-02-06T09:35:00Z"},
+    {"lat": 33.9744, "lng": -118.2633, "timestamp": "2026-02-06T09:40:00Z"}
+  ],
+  "speed_data": [
+    {"timestamp": "2026-02-06T09:00:00Z", "speed_kmh": 0},
+    {"timestamp": "2026-02-06T09:01:00Z", "speed_kmh": 25},
+    {"timestamp": "2026-02-06T09:05:00Z", "speed_kmh": 55},
+    {"timestamp": "2026-02-06T09:10:00Z", "speed_kmh": 60},
+    {"timestamp": "2026-02-06T09:15:00Z", "speed_kmh": 75},
+    {"timestamp": "2026-02-06T09:20:00Z", "speed_kmh": 85},
+    {"timestamp": "2026-02-06T09:25:00Z", "speed_kmh": 90},
+    {"timestamp": "2026-02-06T09:30:00Z", "speed_kmh": 80},
+    {"timestamp": "2026-02-06T09:35:00Z", "speed_kmh": 70},
+    {"timestamp": "2026-02-06T09:40:00Z", "speed_kmh": 0}
+  ],
+  "events": [
+    {"event_type": "hard_brake", "timestamp": "2026-02-06T09:10:30Z", "location": {"lat": 33.9740, "lng": -118.2520}, "g_force": 0.7},
+    {"event_type": "sharp_turn", "timestamp": "2026-02-06T09:15:10Z", "location": {"lat": 33.9760, "lng": -118.2540}, "g_force": 0.45},
+    {"event_type": "acceleration", "timestamp": "2026-02-06T09:20:50Z", "location": {"lat": 33.9775, "lng": -118.2570}, "g_force": 0.35}
+  ],
+  "high_frequency_events": {
+    "hard_brake_event": {
+      "g_force_threshold": 0.7,
+      "data": [
+        {"timestamp": "2026-02-06T09:10:28Z", "speed_kmh": 60, "acceleration": -1.2, "lat": 33.9740, "lng": -118.2520},
+        {"timestamp": "2026-02-06T09:10:29Z", "speed_kmh": 58, "acceleration": -1.5, "lat": 33.9741, "lng": -118.2522},
+        {"timestamp": "2026-02-06T09:10:30Z", "speed_kmh": 50, "acceleration": -1.9, "lat": 33.9742, "lng": -118.2525},
+        {"timestamp": "2026-02-06T09:10:31Z", "speed_kmh": 45, "acceleration": -2.0, "lat": 33.9743, "lng": -118.2527},
+        {"timestamp": "2026-02-06T09:10:32Z", "speed_kmh": 40, "acceleration": -2.1, "lat": 33.9744, "lng": -118.2530}
+      ]
+    }
+  },
+  "vehicle_conditions": {
+    "tire_pressure_front_left": 31,
+    "tire_pressure_front_right": 31,
+    "tire_pressure_rear_left": 30,
+    "tire_pressure_rear_right": 30,
+    "battery_level_percent": 80,
+    "oil_temperature_celsius": 98
+  },
+  "driver_info": {
+    "driver_id": "D987654321",
+    "driver_name": "Jane Smith",
+    "driver_age": 29,
+    "driver_license_status": "Valid",
+    "driving_experience_years": 8
+  },
+  "insurance_info": {
+    "policy_number": "INS234567890",
+    "policy_type": "Pay-Per-Mile",
+    "insurance_company": "XYZ Insurance",
+    "claimable_incidents": 1
+  }
+}

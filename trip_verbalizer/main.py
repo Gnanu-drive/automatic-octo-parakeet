@@ -106,6 +106,12 @@ Examples:
     )
     
     parser.add_argument(
+        "--long",
+        action="store_true",
+        help="Generate longer, more detailed narration"
+    )
+    
+    parser.add_argument(
         "--geocode-rate",
         type=int,
         default=5,
@@ -320,7 +326,8 @@ async def run_pipeline(args: argparse.Namespace) -> NarrationOutput:
     # Create and run pipeline
     pipeline = TripVerbalizerPipeline(
         config=config,
-        use_mock_llm=args.mock_llm
+        use_mock_llm=args.mock_llm,
+        long_narration=getattr(args, 'long', False)
     )
     
     return await pipeline.process(

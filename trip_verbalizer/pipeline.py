@@ -70,6 +70,7 @@ class TripVerbalizerPipeline:
         config: dict[str, Any] | None = None,
         config_path: str | Path | None = None,
         use_mock_llm: bool = False,
+        long_narration: bool = False,
     ):
         """
         Initialize the pipeline.
@@ -78,6 +79,7 @@ class TripVerbalizerPipeline:
             config: Configuration dictionary (overrides config file)
             config_path: Path to config.yaml file
             use_mock_llm: If True, use mock LLM for testing
+            long_narration: If True, generate longer narrations
         """
         # Load configuration
         if config:
@@ -88,6 +90,8 @@ class TripVerbalizerPipeline:
             except FileNotFoundError:
                 logger.warning("Config file not found, using defaults")
                 self.config = {}
+        
+        self.long_narration = long_narration
         
         # Initialize analyzers
         self.geo_enricher = GeoEnricher(self.config)
@@ -100,6 +104,7 @@ class TripVerbalizerPipeline:
         self.use_mock_llm = use_mock_llm
         if use_mock_llm:
             self.llm_client = MockLLMClient.from_config(self.config)
+            self.llm_client.long_narration = long_narration
         else:
             self.llm_client = LLMClient.from_config(self.config)
         
