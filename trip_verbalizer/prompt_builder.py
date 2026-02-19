@@ -4,9 +4,10 @@ Prompt Builder Module
 This module constructs structured prompts for the LLM to generate
 natural language trip narrations.
 
-Supports two generation modes:
+Supports three generation modes:
 - narrative: Natural storytelling narration (default)
 - navigation_past: Third-person past-tense procedural driving report
+- summary: Concise bullet-point trip summary
 """
 
 import json
@@ -60,6 +61,16 @@ No assumptions.
 No added commentary.
 Chronological.
 One instruction per line."""
+
+
+# System prompt for summary mode
+SUMMARY_SYSTEM_PROMPT = """You are a trip data summarizer.
+Generate a concise bullet-point summary of the trip.
+Include only key facts: origin, destination, distance, duration, route highlights, and notable events.
+Use bullet points.
+Keep it brief and factual.
+No narrative or storytelling.
+Maximum 10 bullet points."""
 
 
 # Past-tense action templates
@@ -127,6 +138,9 @@ class PromptBuilder:
         if self.mode == GenerationMode.NAVIGATION_PAST:
             return NAVIGATION_PAST_SYSTEM_PROMPT
         
+        if self.mode == GenerationMode.SUMMARY:
+            return SUMMARY_SYSTEM_PROMPT
+        
         # Default narrative mode prompt
         return """You are a trip data narrator. Your task is to describe vehicle trips in a factual, objective manner.
 
@@ -172,6 +186,9 @@ class PromptBuilder:
                 semantic_summary, navigation_segments
             )
         
+        if self.mode == GenerationMode.SUMMARY:
+            return self._build_summary_prompt(semantic_summary)
+        
         # Default narrative mode
         # Build structured JSON summary
         trip_json = self._build_trip_json(semantic_summary)
@@ -184,6 +201,85 @@ class PromptBuilder:
         json_str = json.dumps(trip_json, indent=2, default=str)
         
         return f"Input:\n{json_str}"
+    
+    def _build_summary_prompt(
+        self,
+        semantic_summary: SemanticSummary,
+    ) -> str:
+        """
+        Build prompt for summary mode.
+        
+        Creates a concise data structure for bullet-point summary generation.
+        """
+        ts = semantic_summary.trip_summary
+        rd = semantic_summary.route_description
+        db = semantic_summary.driver_behavior
+        
+        summary_data = {
+            "trip_id": ts.trip_id,
+            "origin": ts.start_location,
+            "destination": ts.end_location,
+            "distance": ts.distance,
+            "duration": ts.duration,
+            "start_time": ts.start_time,
+            "end_time": ts.end_time,
+            "average_speed": ts.average_speed,
+            "max_speed": ts.max_speed,
+            "route_type": rd.route_type,
+            "direction": rd.general_direction,
+            "major_roads": rd.major_roads[:3] if rd.major_roads else [],
+            "event_count": ts.event_count,
+            "driver_rating": f"{db.overall_rating}/10",
+        }
+        
+        prompt_parts = [
+            "Generate a bullet-point summary of this trip:",
+            "",
+            json.dumps(summary_data, indent=2, default=str),
+            "",
+            "Format: Use bullet points (•). Maximum 10 points. Include only key facts.",
+        ]
+        
+        return "\n".join(prompt_parts)
+    
+    def render_summary_report(
+        self,
+        semantic_summary: SemanticSummary,
+    ) -> str:
+        """
+        Render a summary report without LLM (fallback).
+        
+        Args:
+            semantic_summary: Structured trip summary
+            
+        Returns:
+            Bullet-point summary string
+        """
+        ts = semantic_summary.trip_summary
+        rd = semantic_summary.route_description
+        db = semantic_summary.driver_behavior
+        
+        lines = [
+            f"• Origin: {ts.start_location}",
+            f"• Destination: {ts.end_location}",
+            f"• Distance: {ts.distance}",
+            f"• Duration: {ts.duration}",
+            f"• Start Time: {ts.start_time}",
+            f"• Average Speed: {ts.average_speed}",
+            f"• Max Speed: {ts.max_speed}",
+            f"• Route Type: {rd.route_type.title()}",
+            f"• Direction: {rd.general_direction or 'N/A'}",
+        ]
+        
+        if rd.major_roads:
+            lines.append(f"• Major Roads: {', '.join(rd.major_roads[:3])}")
+        
+        if ts.event_count > 0:
+            lines.append(f"• Events: {ts.event_count} recorded")
+        
+        lines.append(f"• Driver Rating: {db.overall_rating}/10")
+        
+        return "\n".join(lines)
     
     def _build_navigation_past_prompt(
         self,

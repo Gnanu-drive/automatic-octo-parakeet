@@ -4,9 +4,10 @@ Trip Verbalizer: Vehicle Telematics to Natural Language Pipeline
 A production-ready Python pipeline that converts vehicle telematics trip JSON
 into human-readable English narration using a local LLM via llama.cpp.
 
-Supports two generation modes:
+Supports three generation modes:
 - narrative: Natural storytelling narration (default)
 - navigation_past: Third-person past-tense procedural driving report
+- summary: Concise bullet-point trip summary
 """
 
 __version__ = "1.0.0"

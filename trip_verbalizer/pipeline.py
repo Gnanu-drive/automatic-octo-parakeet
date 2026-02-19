@@ -468,6 +468,10 @@ class TripVerbalizerPipeline:
         if self.mode == GenerationMode.NAVIGATION_PAST:
             return self._generate_navigation_past_fallback()
         
+        # For summary mode, use the summary renderer
+        if self.mode == GenerationMode.SUMMARY:
+            return self._generate_summary_fallback()
+        
         # Default narrative mode fallback
         fallback = FallbackNarrator()
         
@@ -522,6 +526,29 @@ class TripVerbalizerPipeline:
                 "The driver started at the origin.\n"
                 "The driver traveled along the route.\n"
                 "The driver arrived at the destination."
+            )
+    
+    def _generate_summary_fallback(self) -> str:
+        """Generate fallback for summary mode using templates."""
+        try:
+            # Get cached semantic summary
+            semantic_summary = getattr(self, '_last_semantic_summary', None)
+            if not semantic_summary:
+                # Minimal fallback
+                start_loc = getattr(self, '_last_start_location', 'Unknown')
+                end_loc = getattr(self, '_last_end_location', 'Unknown')
+                return (
+                    f"• Origin: {start_loc}\n"
+                    f"• Destination: {end_loc}\n"
+                    "• Trip completed successfully"
+                )
+            
+            return self.prompt_builder.render_summary_report(semantic_summary)
+        except Exception as e:
+            logger.warning(f"Summary fallback failed: {e}")
+            return (
+                "• Trip completed\n"
+                "• See structured metadata for details"
             )
     
     @classmethod

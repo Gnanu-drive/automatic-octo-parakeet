@@ -108,9 +108,10 @@ output:
   include_metadata: true
   include_debug_logs: false
   
-  # Generation mode: "narrative" or "navigation_past"
+  # Generation mode: "narrative", "navigation_past", or "summary"
   # - narrative: Natural storytelling narration (default)
   # - navigation_past: Third-person past-tense procedural driving report
+  # - summary: Concise bullet-point trip summary
   mode: "narrative"
   
   # Formatting

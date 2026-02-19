@@ -69,6 +69,7 @@ class GenerationMode(str, Enum):
     """Generation mode for trip verbalization."""
     NARRATIVE = "narrative"
     NAVIGATION_PAST = "navigation_past"
+    SUMMARY = "summary"
 
 
 class NavigationAction(str, Enum):
