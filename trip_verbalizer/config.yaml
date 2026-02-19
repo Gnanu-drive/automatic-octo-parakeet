@@ -1,0 +1,122 @@
+# Trip Verbalizer Configuration
+# ==============================
+
+# Geocoding settings
+geocoding:
+  # Primary geocoding service
+  primary_service: nominatim
+  # Fallback service if primary fails
+  fallback_service: photon
+  
+  # Nominatim settings
+  nominatim:
+    base_url: "https://nominatim.openstreetmap.org"
+    user_agent: "trip_verbalizer/1.0"
+    rate_limit_delay: 1.0  # seconds between requests
+    timeout: 10.0
+  
+  # Photon settings (fallback)
+  photon:
+    base_url: "https://photon.komoot.io"
+    timeout: 10.0
+  
+  # Caching
+  cache:
+    enabled: true
+    type: sqlite  # Options: memory, sqlite, file
+    sqlite_path: ".cache/geocode_cache.db"
+    ttl_days: 30
+    max_entries: 10000
+
+# Spatial analysis settings
+spatial:
+  # Turn detection thresholds (degrees)
+  turn_threshold_minor: 20
+  turn_threshold_moderate: 45
+  turn_threshold_sharp: 90
+  
+  # Direction cardinal points
+  cardinal_directions: 8  # 4 or 8 or 16
+
+# Temporal analysis settings
+temporal:
+  # Speed thresholds (km/h)
+  idle_threshold: 2
+  low_speed_threshold: 20
+  cruising_min_speed: 40
+  high_speed_threshold: 100
+  
+  # Acceleration thresholds (km/h per second)
+  acceleration_mild: 2.0
+  acceleration_moderate: 5.0
+  acceleration_hard: 8.0
+  
+  # Phase duration minimums (seconds)
+  min_phase_duration: 5
+  
+  # Anomaly detection
+  speed_spike_factor: 1.5  # Factor above average to flag as spike
+  idle_anomaly_threshold: 120  # seconds of idle to flag
+
+# Event analysis settings
+events:
+  # Hard braking thresholds (g-force or deceleration rate)
+  hard_braking:
+    mild: 0.3
+    moderate: 0.5
+    severe: 0.7
+  
+  # Sharp turn thresholds (degrees per second)
+  sharp_turn:
+    mild: 15
+    moderate: 30
+    severe: 45
+  
+  # Rapid acceleration thresholds
+  rapid_acceleration:
+    mild: 0.3
+    moderate: 0.5
+    severe: 0.7
+  
+  # Severity scoring weights
+  severity_weights:
+    braking: 1.2
+    turn: 1.0
+    acceleration: 0.8
+
+# LLM settings
+llm:
+  # llama.cpp server endpoint
+  base_url: "http://localhost:8080"
+  endpoint: "/v1/chat/completions"
+  
+  # Model parameters
+  model: "local-model"
+  temperature: 0.7
+  max_tokens: 2048
+  top_p: 0.9
+  
+  # Request settings
+  timeout: 120.0
+  retry_attempts: 3
+  retry_delay: 2.0
+
+# Output settings
+output:
+  # Include in response
+  include_narration: true
+  include_metadata: true
+  include_debug_logs: false
+  
+  # Formatting
+  narration_style: "third_person"
+  time_format: "%I:%M %p"  # 9:00 AM format
+  date_format: "%B %d, %Y"
+
+# Logging settings
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/trip_verbalizer.log"
+  rotate_size_mb: 10
+  backup_count: 5

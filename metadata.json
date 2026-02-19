@@ -1,0 +1,55 @@
+{
+  "narration": "The driver completed a journey from the starting location to the destination. The trip proceeded through various phases including acceleration, cruising, and stops. For detailed analysis, please review the structured metadata.",
+  "generated_at": "2026-02-19T04:54:10.935965",
+  "model_used": "local-model",
+  "processing_time_seconds": 0.06768679618835449,
+  "trip_summary": {
+    "trip_id": "TRIP-2024-001",
+    "duration": "40 minutes",
+    "distance": "7.3 km",
+    "start_time": "09:00 AM",
+    "end_time": "09:40 AM",
+    "start_location": "South Venice Boulevard, Venice Canal Historic District, Los Angeles",
+    "end_location": "Arizona Place South, Santa Monica",
+    "average_speed": "45 km/h",
+    "max_speed": "62 km/h",
+    "event_count": 3,
+    "idle_time": null,
+    "fuel_used": null
+  },
+  "route_description": {
+    "start_location": "South Venice Boulevard, Venice Canal Historic District, Los Angeles",
+    "end_location": "Arizona Place South, Santa Monica",
+    "total_distance_km": 7.3412421980221145,
+    "major_roads": [
+      "South Venice Boulevard",
+      "Main Street",
+      "15th Court",
+      "Arizona Place South"
+    ],
+    "cities_passed": [
+      "Los Angeles",
+      "Santa Monica"
+    ],
+    "notable_locations": [],
+    "route_type": "mixed",
+    "general_direction": "north"
+  },
+  "driver_behavior": {
+    "overall_rating": 9.1,
+    "hard_braking_count": 1,
+    "sharp_turn_count": 1,
+    "rapid_acceleration_count": 1,
+    "over_speed_count": 0,
+    "aggressive_driving": true,
+    "smooth_driving": false,
+    "speed_compliance": 100.0,
+    "behavior_summary": "The driver demonstrated excellent driving behavior. The trip included 1 hard braking event, 1 sharp turn, 1 rapid acceleration event. Overall driving style was aggressive.",
+    "improvement_suggestions": [
+      "Consider defensive driving techniques for safer journeys"
+    ]
+  },
+  "phase_count": 2,
+  "event_count": 3,
+  "turn_count": 1
+}

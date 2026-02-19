@@ -1,0 +1,251 @@
+{
+  "trip_id": "TRIP-2024-001",
+  "vehicle_id": "VEH-ABC123",
+  "route": [
+    {
+      "latitude": 33.9850,
+      "longitude": -118.4695,
+      "timestamp": "2024-03-15T09:00:00Z",
+      "altitude": 15.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 33.9875,
+      "longitude": -118.4720,
+      "timestamp": "2024-03-15T09:02:00Z",
+      "altitude": 16.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 33.9920,
+      "longitude": -118.4750,
+      "timestamp": "2024-03-15T09:05:00Z",
+      "altitude": 18.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 33.9980,
+      "longitude": -118.4800,
+      "timestamp": "2024-03-15T09:08:00Z",
+      "altitude": 20.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0020,
+      "longitude": -118.4850,
+      "timestamp": "2024-03-15T09:10:00Z",
+      "altitude": 22.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0050,
+      "longitude": -118.4870,
+      "timestamp": "2024-03-15T09:12:00Z",
+      "altitude": 24.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0100,
+      "longitude": -118.4900,
+      "timestamp": "2024-03-15T09:15:00Z",
+      "altitude": 26.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0150,
+      "longitude": -118.4920,
+      "timestamp": "2024-03-15T09:18:00Z",
+      "altitude": 28.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0180,
+      "longitude": -118.4900,
+      "timestamp": "2024-03-15T09:20:00Z",
+      "altitude": 30.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0210,
+      "longitude": -118.4870,
+      "timestamp": "2024-03-15T09:22:00Z",
+      "altitude": 32.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0240,
+      "longitude": -118.4830,
+      "timestamp": "2024-03-15T09:25:00Z",
+      "altitude": 34.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0270,
+      "longitude": -118.4800,
+      "timestamp": "2024-03-15T09:28:00Z",
+      "altitude": 36.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0300,
+      "longitude": -118.4780,
+      "timestamp": "2024-03-15T09:30:00Z",
+      "altitude": 38.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0330,
+      "longitude": -118.4760,
+      "timestamp": "2024-03-15T09:33:00Z",
+      "altitude": 40.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0350,
+      "longitude": -118.4740,
+      "timestamp": "2024-03-15T09:35:00Z",
+      "altitude": 42.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0370,
+      "longitude": -118.4720,
+      "timestamp": "2024-03-15T09:38:00Z",
+      "altitude": 44.0,
+      "accuracy": 5.0
+    },
+    {
+      "latitude": 34.0385,
+      "longitude": -118.4695,
+      "timestamp": "2024-03-15T09:40:00Z",
+      "altitude": 45.0,
+      "accuracy": 5.0
+    }
+  ],
+  "speed_data": [
+    {"timestamp": "2024-03-15T09:00:00Z", "speed_kmh": 0.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:02:00Z", "speed_kmh": 25.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:05:00Z", "speed_kmh": 45.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:08:00Z", "speed_kmh": 55.0, "speed_limit": 60.0},
+    {"timestamp": "2024-03-15T09:10:00Z", "speed_kmh": 60.0, "speed_limit": 60.0},
+    {"timestamp": "2024-03-15T09:12:00Z", "speed_kmh": 58.0, "speed_limit": 60.0},
+    {"timestamp": "2024-03-15T09:15:00Z", "speed_kmh": 62.0, "speed_limit": 60.0},
+    {"timestamp": "2024-03-15T09:18:00Z", "speed_kmh": 55.0, "speed_limit": 60.0},
+    {"timestamp": "2024-03-15T09:20:00Z", "speed_kmh": 48.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:22:00Z", "speed_kmh": 52.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:25:00Z", "speed_kmh": 50.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:28:00Z", "speed_kmh": 45.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:30:00Z", "speed_kmh": 40.0, "speed_limit": 50.0},
+    {"timestamp": "2024-03-15T09:33:00Z", "speed_kmh": 35.0, "speed_limit": 40.0},
+    {"timestamp": "2024-03-15T09:35:00Z", "speed_kmh": 25.0, "speed_limit": 40.0},
+    {"timestamp": "2024-03-15T09:38:00Z", "speed_kmh": 15.0, "speed_limit": 40.0},
+    {"timestamp": "2024-03-15T09:40:00Z", "speed_kmh": 0.0, "speed_limit": 40.0}
+  ],
+  "events": [
+    {
+      "event_id": "EVT-001",
+      "event_type": "hard_braking",
+      "timestamp": "2024-03-15T09:10:30Z",
+      "latitude": 34.0025,
+      "longitude": -118.4855,
+      "severity": "moderate",
+      "value": 0.45,
+      "duration_seconds": 2.5,
+      "description": "Hard braking detected near Venice intersection",
+      "metadata": {"g_force": 0.45, "pre_event_speed": 60.0, "post_event_speed": 35.0}
+    },
+    {
+      "event_id": "EVT-002",
+      "event_type": "sharp_turn",
+      "timestamp": "2024-03-15T09:20:15Z",
+      "latitude": 34.0185,
+      "longitude": -118.4895,
+      "severity": "minor",
+      "value": 25.0,
+      "duration_seconds": 3.0,
+      "description": "Right turn at moderate speed",
+      "metadata": {"turn_angle": 25.0, "speed_during_turn": 48.0}
+    },
+    {
+      "event_id": "EVT-003",
+      "event_type": "rapid_acceleration",
+      "timestamp": "2024-03-15T09:02:30Z",
+      "latitude": 33.9880,
+      "longitude": -118.4725,
+      "severity": "minor",
+      "value": 0.35,
+      "duration_seconds": 4.0,
+      "description": "Quick acceleration from stop",
+      "metadata": {"g_force": 0.35, "start_speed": 0.0, "end_speed": 30.0}
+    }
+  ],
+  "vehicle_conditions": [
+    {
+      "timestamp": "2024-03-15T09:00:00Z",
+      "fuel_level": 75.0,
+      "battery_voltage": 12.6,
+      "engine_temp": 85.0,
+      "oil_pressure": 45.0,
+      "tire_pressure": {
+        "front_left": 32.0,
+        "front_right": 32.0,
+        "rear_left": 30.0,
+        "rear_right": 30.0
+      },
+      "odometer": 45230.5,
+      "status": "normal",
+      "warnings": []
+    },
+    {
+      "timestamp": "2024-03-15T09:20:00Z",
+      "fuel_level": 73.0,
+      "battery_voltage": 14.2,
+      "engine_temp": 92.0,
+      "oil_pressure": 48.0,
+      "tire_pressure": {
+        "front_left": 33.0,
+        "front_right": 33.0,
+        "rear_left": 31.0,
+        "rear_right": 31.0
+      },
+      "odometer": 45238.2,
+      "status": "normal",
+      "warnings": []
+    },
+    {
+      "timestamp": "2024-03-15T09:40:00Z",
+      "fuel_level": 71.0,
+      "battery_voltage": 12.8,
+      "engine_temp": 88.0,
+      "oil_pressure": 44.0,
+      "tire_pressure": {
+        "front_left": 32.5,
+        "front_right": 32.5,
+        "rear_left": 30.5,
+        "rear_right": 30.5
+      },
+      "odometer": 45245.8,
+      "status": "normal",
+      "warnings": []
+    }
+  ],
+  "driver": {
+    "driver_id": "DRV-12345",
+    "name": "John Smith",
+    "license_number": "CA-DL-987654",
+    "rating": 4.5,
+    "total_trips": 342,
+    "metadata": {
+      "years_experience": 8,
+      "vehicle_familiarity": "high"
+    }
+  },
+  "metadata": {
+    "source": "telematics_device_v3",
+    "recording_quality": "high",
+    "weather_conditions": "clear",
+    "traffic_conditions": "moderate",
+    "purpose": "commute",
+    "notes": "Morning commute from Marina del Rey to Santa Monica"
+  }
+}
