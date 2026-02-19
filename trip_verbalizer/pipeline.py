@@ -15,7 +15,7 @@ from typing import Any
 
 from .events import EventAnalyzer
 from .geo import GeoEnricher
-from .llm_client import LLMClient, MockLLMClient, LLMError
+from .llm_client import LLMClient, MockLLMClient, LLMError, FallbackNarrator, LLMConnectionError
 from .models import (
     AnalyzedEvent,
     Coordinate,
@@ -413,12 +413,32 @@ class TripVerbalizerPipeline:
             return self._generate_fallback_narration()
     
     def _generate_fallback_narration(self) -> str:
-        """Generate simple fallback narration when LLM is unavailable."""
-        return (
-            "The driver completed a journey from the starting location to the destination. "
-            "The trip proceeded through various phases including acceleration, cruising, and stops. "
-            "For detailed analysis, please review the structured metadata."
-        )
+        """Generate fallback narration when LLM is unavailable."""
+        fallback = FallbackNarrator()
+        
+        # Try to extract useful info for better fallback
+        try:
+            distance_km = getattr(self, '_last_distance_km', 0)
+            duration_min = getattr(self, '_last_duration_min', 0)
+            start_loc = getattr(self, '_last_start_location', 'unknown')
+            end_loc = getattr(self, '_last_end_location', 'unknown')
+            avg_speed = getattr(self, '_last_avg_speed', 0)
+            events = getattr(self, '_last_events', [])
+            
+            return fallback.narrate(
+                distance_km=distance_km,
+                duration_min=duration_min,
+                start_location=start_loc,
+                end_location=end_loc,
+                avg_speed_kmh=avg_speed,
+                events=events,
+            )
+        except Exception:
+            return (
+                "The driver completed a journey from the starting location to the destination. "
+                "The trip proceeded through various phases including acceleration, cruising, and stops. "
+                "For detailed analysis, please review the structured metadata."
+            )
     
     @classmethod
     async def from_json_file(

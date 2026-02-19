@@ -5,6 +5,9 @@
 httpx>=0.25.0
 aiohttp>=3.9.0
 
+# SSL certificate bundle (for corporate environments)
+certifi>=2023.11.0
+
 # Data validation
 pydantic>=2.5.0
 pydantic-settings>=2.1.0

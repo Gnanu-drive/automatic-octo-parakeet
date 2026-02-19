@@ -230,6 +230,67 @@ print(result.semantic_summary.driver_behavior.overall_rating)
 - llama.cpp server running locally (or use `--mock-llm` for testing)
 - Internet connection for geocoding (results are cached)
 
+## Corporate Environment Configuration
+
+The pipeline is designed to work in corporate environments with SSL interception, proxies, and restricted network access.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TRIP_VERBALIZER_INSECURE_SSL` | Set to `1` to disable SSL verification (use with caution) | `0` |
+| `HTTP_PROXY` | HTTP proxy URL | None |
+| `HTTPS_PROXY` | HTTPS proxy URL | None |
+| `LLM_HOST` | llama.cpp server host | `localhost` |
+| `LLM_PORT` | llama.cpp server port | `8080` |
+
+### SSL Certificate Issues
+
+If you encounter SSL certificate verification failures (common with corporate SSL interception):
+
+```bash
+# Option 1: Use system certificates (recommended)
+# The pipeline uses certifi's CA bundle by default
+
+# Option 2: Disable SSL verification (use with caution!)
+export TRIP_VERBALIZER_INSECURE_SSL=1
+python -m trip_verbalizer.main samples/sample_trip.json
+```
+
+### Proxy Configuration
+
+```bash
+# Set proxy environment variables
+export HTTP_PROXY="http://proxy.corporate.com:8080"
+export HTTPS_PROXY="http://proxy.corporate.com:8080"
+
+python -m trip_verbalizer.main samples/sample_trip.json
+```
+
+### Geocoding Service Issues
+
+If Photon returns 403 Forbidden errors (common with corporate firewalls):
+- The pipeline automatically falls back to Nominatim
+- Results are cached locally to minimize external requests
+- Use `--debug` flag to see which geocoding service is being used
+
+### LLM Server Configuration
+
+```bash
+# Custom LLM server location
+export LLM_HOST="192.168.1.100"
+export LLM_PORT="8080"
+
+python -m trip_verbalizer.main samples/sample_trip.json
+```
+
+### Offline Mode
+
+When external services are unavailable:
+- Geocoding: Falls back to coordinate-only location data
+- LLM: Uses template-based narration (FallbackNarrator)
+- Both gracefully degrade without crashing the pipeline
+
 ## Dependencies
 
 - `httpx` / `aiohttp`: Async HTTP clients
