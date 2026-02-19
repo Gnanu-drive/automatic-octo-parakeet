@@ -3,6 +3,10 @@ Prompt Builder Module
 
 This module constructs structured prompts for the LLM to generate
 natural language trip narrations.
+
+Supports two generation modes:
+- narrative: Natural storytelling narration (default)
+- navigation_past: Third-person past-tense procedural driving report
 """
 
 import json
@@ -14,12 +18,16 @@ from .models import (
     AnalyzedEvent,
     DriverBehaviorSummary,
     EnrichedCoordinate,
+    GenerationMode,
+    NavigationAction,
+    NavigationInstruction,
     Phase,
     RouteDescription,
     SemanticSummary,
     SpeedAnomaly,
     TripSummary,
     Turn,
+    TurnDirection,
 )
 from .utils.helpers import format_time
 
@@ -27,7 +35,7 @@ from .utils.helpers import format_time
 logger = logging.getLogger(__name__)
 
 
-# System prompt for the LLM
+# System prompt for the LLM (narrative mode)
 SYSTEM_PROMPT = """You are a mobility analyst and trip narrator.
 
 Write a third-person natural English narration of the trip.
@@ -42,12 +50,41 @@ Rules:
 - paragraph format"""
 
 
+# System prompt for navigation_past mode
+NAVIGATION_PAST_SYSTEM_PROMPT = """You are a driving report generator.
+Convert structured navigation instructions into third-person past-tense driving description.
+Use short sentences.
+Keep Google Maps clarity.
+No storytelling.
+No assumptions.
+No added commentary.
+Chronological.
+One instruction per line."""
+
+
+# Past-tense action templates
+PAST_TENSE_TEMPLATES = {
+    NavigationAction.START: "The driver started at {location}.",
+    NavigationAction.GO_STRAIGHT: "The driver proceeded {direction} for {distance} along {road}.",
+    NavigationAction.TURN_LEFT: "The driver turned left onto {road}.",
+    NavigationAction.TURN_RIGHT: "The driver turned right onto {road}.",
+    NavigationAction.SLIGHT_LEFT: "The driver took a slight left onto {road}.",
+    NavigationAction.SLIGHT_RIGHT: "The driver took a slight right onto {road}.",
+    NavigationAction.U_TURN: "The driver made a U-turn onto {road}.",
+    NavigationAction.ARRIVE: "The driver arrived at {location}.",
+}
+
+
 class PromptBuilder:
     """
     Builds structured prompts for LLM trip narration.
     
     Converts semantic summary into a prompt that guides
     the LLM to generate natural language narration.
+    
+    Supports two modes:
+    - narrative: Traditional storytelling narration
+    - navigation_past: Procedural past-tense driving report
     """
     
     def __init__(
@@ -55,6 +92,7 @@ class PromptBuilder:
         config: dict[str, Any] | None = None,
         time_format: str = "%I:%M %p",
         date_format: str = "%B %d, %Y",
+        mode: GenerationMode | str = GenerationMode.NARRATIVE,
     ):
         """
         Initialize prompt builder.
@@ -63,16 +101,33 @@ class PromptBuilder:
             config: Configuration dictionary
             time_format: strftime format for times
             date_format: strftime format for dates
+            mode: Generation mode (narrative or navigation_past)
         """
         self.config = config or {}
         output_config = self.config.get("output", {})
         
         self.time_format = output_config.get("time_format", time_format)
         self.date_format = output_config.get("date_format", date_format)
+        
+        # Set generation mode
+        if isinstance(mode, str):
+            self.mode = GenerationMode(mode)
+        else:
+            self.mode = mode
     
+    def set_mode(self, mode: GenerationMode | str) -> None:
+        """Set the generation mode."""
+        if isinstance(mode, str):
+            self.mode = GenerationMode(mode)
+        else:
+            self.mode = mode
 
     def get_system_prompt(self) -> str:
-        """Return system prompt for LLM."""
+        """Return system prompt for LLM based on current mode."""
+        if self.mode == GenerationMode.NAVIGATION_PAST:
+            return NAVIGATION_PAST_SYSTEM_PROMPT
+        
+        # Default narrative mode prompt
         return """You are a trip data narrator. Your task is to describe vehicle trips in a factual, objective manner.
 
         Rules:
@@ -99,6 +154,7 @@ class PromptBuilder:
         self,
         semantic_summary: SemanticSummary,
         additional_context: str | None = None,
+        navigation_segments: list[dict[str, Any]] | None = None,
     ) -> str:
         """
         Build the complete prompt for narration generation.
@@ -106,10 +162,17 @@ class PromptBuilder:
         Args:
             semantic_summary: Structured trip summary
             additional_context: Optional markdown with anomaly descriptions
+            navigation_segments: Navigation segments for navigation_past mode
             
         Returns:
             Formatted prompt string with JSON input
         """
+        if self.mode == GenerationMode.NAVIGATION_PAST:
+            return self._build_navigation_past_prompt(
+                semantic_summary, navigation_segments
+            )
+        
+        # Default narrative mode
         # Build structured JSON summary
         trip_json = self._build_trip_json(semantic_summary)
         
@@ -121,6 +184,256 @@ class PromptBuilder:
         json_str = json.dumps(trip_json, indent=2, default=str)
         
         return f"Input:\n{json_str}"
+    
+    def _build_navigation_past_prompt(
+        self,
+        semantic_summary: SemanticSummary,
+        navigation_segments: list[dict[str, Any]] | None = None,
+    ) -> str:
+        """
+        Build prompt for navigation_past mode.
+        
+        Constructs structured navigation instructions and formats
+        them for the LLM to convert into past-tense driving report.
+        """
+        instructions = self.build_navigation_instructions(
+            semantic_summary, navigation_segments
+        )
+        
+        # Convert instructions to JSON format
+        instructions_json = [inst.to_dict() for inst in instructions]
+        
+        prompt_parts = [
+            "Convert the following navigation instructions into a third-person past-tense driving report.",
+            "Each instruction should be one line. Use the exact format shown in examples.",
+            "",
+            "Instructions:",
+            json.dumps(instructions_json, indent=2),
+        ]
+        
+        return "\n".join(prompt_parts)
+    
+    def build_navigation_instructions(
+        self,
+        semantic_summary: SemanticSummary,
+        navigation_segments: list[dict[str, Any]] | None = None,
+    ) -> list[NavigationInstruction]:
+        """
+        Build structured navigation instructions from semantic summary.
+        
+        Args:
+            semantic_summary: Structured trip summary
+            navigation_segments: Pre-computed navigation segments
+            
+        Returns:
+            List of NavigationInstruction objects
+        """
+        instructions: list[NavigationInstruction] = []
+        
+        # Start instruction
+        start_location = semantic_summary.trip_summary.start_location
+        instructions.append(NavigationInstruction(
+            action=NavigationAction.START,
+            location=start_location,
+        ))
+        
+        # Process navigation segments if provided
+        if navigation_segments:
+            for segment in navigation_segments:
+                movement = segment.get("movement_type", "straight")
+                distance = segment.get("distance_m", 0)
+                road = segment.get("road_name")
+                direction = segment.get("direction")
+                
+                action = self._movement_to_action(movement)
+                
+                if action == NavigationAction.GO_STRAIGHT:
+                    if distance > 0:
+                        instructions.append(NavigationInstruction(
+                            action=action,
+                            distance_m=distance,
+                            road=road or "the road",
+                            direction=direction or "forward",
+                        ))
+                else:
+                    # Turn instruction
+                    instructions.append(NavigationInstruction(
+                        action=action,
+                        road=road or "the road",
+                    ))
+        else:
+            # Fallback: use turns from semantic summary
+            self._build_instructions_from_turns(
+                semantic_summary, instructions
+            )
+        
+        # Arrive instruction
+        end_location = semantic_summary.trip_summary.end_location
+        instructions.append(NavigationInstruction(
+            action=NavigationAction.ARRIVE,
+            location=end_location,
+        ))
+        
+        return instructions
+    
+    def _movement_to_action(self, movement_type: str) -> NavigationAction:
+        """Convert movement type string to NavigationAction."""
+        mapping = {
+            "straight": NavigationAction.GO_STRAIGHT,
+            "turn_left": NavigationAction.TURN_LEFT,
+            "turn_right": NavigationAction.TURN_RIGHT,
+            "slight_left": NavigationAction.SLIGHT_LEFT,
+            "slight_right": NavigationAction.SLIGHT_RIGHT,
+            "u_turn": NavigationAction.U_TURN,
+        }
+        return mapping.get(movement_type, NavigationAction.GO_STRAIGHT)
+    
+    def _build_instructions_from_turns(
+        self,
+        semantic_summary: SemanticSummary,
+        instructions: list[NavigationInstruction],
+    ) -> None:
+        """Build navigation instructions from turns when segments not available."""
+        enriched_route = semantic_summary.enriched_route
+        turns = semantic_summary.turns
+        
+        if not enriched_route:
+            return
+        
+        # Get general direction
+        general_direction = semantic_summary.route_description.general_direction or "forward"
+        
+        # Calculate total distance
+        total_distance = semantic_summary.route_description.total_distance_km * 1000
+        
+        if not turns:
+            # No turns: single straight segment
+            major_roads = semantic_summary.route_description.major_roads
+            road = major_roads[0] if major_roads else "the road"
+            
+            instructions.append(NavigationInstruction(
+                action=NavigationAction.GO_STRAIGHT,
+                distance_m=total_distance,
+                road=road,
+                direction=general_direction,
+            ))
+            return
+        
+        # With turns: create segments between turns
+        prev_distance = 0
+        turn_count = len(turns)
+        distance_per_segment = total_distance / (turn_count + 1) if turn_count > 0 else total_distance
+        
+        for i, turn in enumerate(turns):
+            # Add straight segment before turn
+            road = turn.location_name or "the road"
+            
+            instructions.append(NavigationInstruction(
+                action=NavigationAction.GO_STRAIGHT,
+                distance_m=distance_per_segment,
+                road=road,
+                direction=general_direction,
+            ))
+            
+            # Add turn instruction
+            turn_action = self._turn_direction_to_action(turn.direction, turn.angle)
+            instructions.append(NavigationInstruction(
+                action=turn_action,
+                road=road,
+            ))
+    
+    def _turn_direction_to_action(
+        self,
+        direction: TurnDirection,
+        angle: float,
+    ) -> NavigationAction:
+        """Convert turn direction to navigation action."""
+        if direction == TurnDirection.U_TURN:
+            return NavigationAction.U_TURN
+        elif direction == TurnDirection.LEFT:
+            if angle < 45:
+                return NavigationAction.SLIGHT_LEFT
+            return NavigationAction.TURN_LEFT
+        elif direction == TurnDirection.RIGHT:
+            if angle < 45:
+                return NavigationAction.SLIGHT_RIGHT
+            return NavigationAction.TURN_RIGHT
+        return NavigationAction.GO_STRAIGHT
+    
+    def format_distance_human(self, distance_m: float) -> str:
+        """
+        Format distance in human-friendly format.
+        
+        <1000m → meters
+        ≥1000m → kilometers (1 decimal precision)
+        
+        Args:
+            distance_m: Distance in meters
+            
+        Returns:
+            Human-friendly distance string
+        """
+        if distance_m < 1000:
+            return f"{int(round(distance_m))} meters"
+        return f"{distance_m / 1000:.1f} kilometers"
+    
+    def render_navigation_report(
+        self,
+        instructions: list[NavigationInstruction],
+    ) -> str:
+        """
+        Render navigation instructions as past-tense driving report.
+        
+        This is a fallback renderer that doesn't require LLM.
+        
+        Args:
+            instructions: List of navigation instructions
+            
+        Returns:
+            Past-tense driving report string
+        """
+        lines: list[str] = []
+        
+        for inst in instructions:
+            line = self._render_instruction(inst)
+            if line:
+                lines.append(line)
+        
+        return "\n".join(lines)
+    
+    def _render_instruction(self, inst: NavigationInstruction) -> str:
+        """Render a single navigation instruction to past-tense text."""
+        template = PAST_TENSE_TEMPLATES.get(inst.action)
+        if not template:
+            return ""
+        
+        # Build substitution dict
+        subs: dict[str, str] = {}
+        
+        if inst.location:
+            subs["location"] = inst.location
+        if inst.road:
+            subs["road"] = inst.road
+        if inst.direction:
+            subs["direction"] = inst.direction
+        if inst.distance_m is not None:
+            subs["distance"] = self.format_distance_human(inst.distance_m)
+        
+        # Handle missing values with defaults
+        if "{location}" in template and "location" not in subs:
+            subs["location"] = "the location"
+        if "{road}" in template and "road" not in subs:
+            subs["road"] = "the road"
+        if "{direction}" in template and "direction" not in subs:
+            subs["direction"] = "forward"
+        if "{distance}" in template and "distance" not in subs:
+            subs["distance"] = "some distance"
+        
+        try:
+            return template.format(**subs)
+        except KeyError as e:
+            logger.warning(f"Missing template key: {e}")
+            return ""
     
     def _build_trip_json(self, semantic_summary: SemanticSummary) -> dict[str, Any]:
         """Build structured JSON from semantic summary."""

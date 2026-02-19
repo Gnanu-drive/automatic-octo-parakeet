@@ -21,6 +21,7 @@ from .models import (
     Coordinate,
     DriverBehaviorSummary,
     EnrichedCoordinate,
+    GenerationMode,
     NarrationOutput,
     Phase,
     RouteDescription,
@@ -63,6 +64,10 @@ class TripVerbalizerPipeline:
     6. Semantic Structuring
     7. Prompt Building
     8. LLM Generation
+    
+    Supports two generation modes:
+    - narrative: Natural storytelling narration (default)
+    - navigation_past: Third-person past-tense procedural driving report
     """
     
     def __init__(
@@ -71,6 +76,7 @@ class TripVerbalizerPipeline:
         config_path: str | Path | None = None,
         use_mock_llm: bool = False,
         long_narration: bool = False,
+        mode: GenerationMode | str = GenerationMode.NARRATIVE,
     ):
         """
         Initialize the pipeline.
@@ -80,6 +86,7 @@ class TripVerbalizerPipeline:
             config_path: Path to config.yaml file
             use_mock_llm: If True, use mock LLM for testing
             long_narration: If True, generate longer narrations
+            mode: Generation mode (narrative or navigation_past)
         """
         # Load configuration
         if config:
@@ -93,12 +100,18 @@ class TripVerbalizerPipeline:
         
         self.long_narration = long_narration
         
+        # Set generation mode
+        if isinstance(mode, str):
+            self.mode = GenerationMode(mode)
+        else:
+            self.mode = mode
+        
         # Initialize analyzers
         self.geo_enricher = GeoEnricher(self.config)
         self.spatial_analyzer = SpatialAnalyzer(self.config)
         self.temporal_analyzer = TemporalAnalyzer(self.config)
         self.event_analyzer = EventAnalyzer(self.config)
-        self.prompt_builder = PromptBuilder(self.config)
+        self.prompt_builder = PromptBuilder(self.config, mode=self.mode)
         
         # Initialize LLM client
         self.use_mock_llm = use_mock_llm
@@ -111,6 +124,22 @@ class TripVerbalizerPipeline:
         # Debug logs storage
         self._debug_logs: list[str] = []
         self._warnings: list[str] = []
+        
+        # Navigation segments cache
+        self._navigation_segments: list[dict[str, Any]] = []
+    
+    def set_mode(self, mode: GenerationMode | str) -> None:
+        """
+        Set the generation mode.
+        
+        Args:
+            mode: Generation mode (narrative or navigation_past)
+        """
+        if isinstance(mode, str):
+            self.mode = GenerationMode(mode)
+        else:
+            self.mode = mode
+        self.prompt_builder.set_mode(self.mode)
     
     def _log(self, message: str, level: str = "info") -> None:
         """Log message and store for debug output."""
@@ -142,8 +171,10 @@ class TripVerbalizerPipeline:
         start_time = time.time()
         self._debug_logs = []
         self._warnings = []
+        self._navigation_segments = []
         
         self._log(f"Starting pipeline for trip {trip_data.trip_id}")
+        self._log(f"Generation mode: {self.mode.value}")
         
         try:
             # Stage 1: Validate input
@@ -161,6 +192,14 @@ class TripVerbalizerPipeline:
             self._log("Stage 3: Spatial analysis")
             enriched_route = self.spatial_analyzer.compute_bearings(enriched_route)
             turns = self.spatial_analyzer.detect_turns(enriched_route)
+            
+            # Stage 3b: Build navigation segments (for navigation_past mode)
+            if self.mode == GenerationMode.NAVIGATION_PAST:
+                self._log("Stage 3b: Building navigation segments")
+                self._navigation_segments = self.spatial_analyzer.build_navigation_segments(
+                    enriched_route, turns
+                )
+                self._log(f"Built {len(self._navigation_segments)} navigation segments")
             
             # Stage 4: Temporal Analysis
             self._log("Stage 4: Temporal analysis")
@@ -192,11 +231,17 @@ class TripVerbalizerPipeline:
                 anomalies,
             )
             
+            # Cache for fallback generation
+            self._last_semantic_summary = semantic_summary
+            self._last_start_location = semantic_summary.trip_summary.start_location
+            self._last_end_location = semantic_summary.trip_summary.end_location
+            
             # Stage 7: Prompt Building
             self._log("Stage 7: Constructing LLM prompt")
             prompt = self.prompt_builder.build_prompt(
                 semantic_summary,
-                additional_context
+                additional_context,
+                navigation_segments=self._navigation_segments if self.mode == GenerationMode.NAVIGATION_PAST else None,
             )
             
             # Stage 8: LLM Generation
@@ -419,6 +464,11 @@ class TripVerbalizerPipeline:
     
     def _generate_fallback_narration(self) -> str:
         """Generate fallback narration when LLM is unavailable."""
+        # For navigation_past mode, use the template-based renderer
+        if self.mode == GenerationMode.NAVIGATION_PAST:
+            return self._generate_navigation_past_fallback()
+        
+        # Default narrative mode fallback
         fallback = FallbackNarrator()
         
         # Try to extract useful info for better fallback
@@ -443,6 +493,35 @@ class TripVerbalizerPipeline:
                 "The driver completed a journey from the starting location to the destination. "
                 "The trip proceeded through various phases including acceleration, cruising, and stops. "
                 "For detailed analysis, please review the structured metadata."
+            )
+    
+    def _generate_navigation_past_fallback(self) -> str:
+        """Generate fallback for navigation_past mode using templates."""
+        try:
+            # Get cached semantic summary
+            semantic_summary = getattr(self, '_last_semantic_summary', None)
+            if not semantic_summary:
+                # Minimal fallback
+                start_loc = getattr(self, '_last_start_location', 'the starting location')
+                end_loc = getattr(self, '_last_end_location', 'the destination')
+                return (
+                    f"The driver started at {start_loc}.\n"
+                    "The driver proceeded along the route.\n"
+                    f"The driver arrived at {end_loc}."
+                )
+            
+            # Build instructions and render using templates
+            instructions = self.prompt_builder.build_navigation_instructions(
+                semantic_summary,
+                self._navigation_segments,
+            )
+            return self.prompt_builder.render_navigation_report(instructions)
+        except Exception as e:
+            logger.warning(f"Navigation fallback failed: {e}")
+            return (
+                "The driver started at the origin.\n"
+                "The driver traveled along the route.\n"
+                "The driver arrived at the destination."
             )
     
     @classmethod

@@ -108,6 +108,11 @@ output:
   include_metadata: true
   include_debug_logs: false
   
+  # Generation mode: "narrative" or "navigation_past"
+  # - narrative: Natural storytelling narration (default)
+  # - navigation_past: Third-person past-tense procedural driving report
+  mode: "narrative"
+  
   # Formatting
   narration_style: "third_person"
   time_format: "%I:%M %p"  # 9:00 AM format

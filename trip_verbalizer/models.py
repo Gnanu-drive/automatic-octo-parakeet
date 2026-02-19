@@ -65,6 +65,24 @@ class VehicleConditionStatus(str, Enum):
     CRITICAL = "critical"
 
 
+class GenerationMode(str, Enum):
+    """Generation mode for trip verbalization."""
+    NARRATIVE = "narrative"
+    NAVIGATION_PAST = "navigation_past"
+
+
+class NavigationAction(str, Enum):
+    """Navigation action types for structured instructions."""
+    START = "start"
+    GO_STRAIGHT = "go_straight"
+    TURN_LEFT = "turn_left"
+    TURN_RIGHT = "turn_right"
+    SLIGHT_LEFT = "slight_left"
+    SLIGHT_RIGHT = "slight_right"
+    U_TURN = "u_turn"
+    ARRIVE = "arrive"
+
+
 # =============================================================================
 # Input Models - Raw Trip Data
 # =============================================================================
@@ -274,6 +292,52 @@ class EnrichedCoordinate(BaseModel):
             altitude=coord.altitude,
             location=location,
         )
+
+
+# =============================================================================
+# Navigation Instruction Models
+# =============================================================================
+
+class NavigationInstruction(BaseModel):
+    """
+    Structured navigation instruction for past-tense driving reports.
+    
+    Maps to Google Maps-style turn-by-turn directions.
+    """
+    action: NavigationAction = Field(..., description="Navigation action type")
+    location: str | None = Field(None, description="Location name for start/arrive")
+    distance_m: float | None = Field(None, ge=0, description="Distance in meters")
+    road: str | None = Field(None, description="Road name")
+    direction: str | None = Field(None, description="Cardinal direction (e.g., northwest)")
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result: dict[str, Any] = {"action": self.action.value}
+        if self.location:
+            result["location"] = self.location
+        if self.distance_m is not None:
+            result["distance_m"] = round(self.distance_m)
+        if self.road:
+            result["road"] = self.road
+        if self.direction:
+            result["direction"] = self.direction
+        return result
+
+
+class NavigationSegment(BaseModel):
+    """
+    A segment of the route between direction changes.
+    
+    Aggregates consecutive points traveling in the same direction
+    on the same road.
+    """
+    start_index: int = Field(..., description="Index in enriched_route")
+    end_index: int = Field(..., description="Index in enriched_route")
+    road_name: str | None = None
+    direction: str | None = Field(None, description="Cardinal direction")
+    distance_m: float = Field(0.0, ge=0, description="Segment distance in meters")
+    movement_type: str = Field("straight", description="straight, slight_left, left, right, etc.")
+    turn_angle: float | None = Field(None, description="Turn angle at end of segment")
 
 
 # =============================================================================

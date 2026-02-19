@@ -447,3 +447,181 @@ class SpatialAnalyzer:
             segments.append(current_segment)
         
         return segments
+
+    def build_navigation_segments(
+        self,
+        coordinates: list[EnrichedCoordinate],
+        turns: list[Turn],
+    ) -> list[dict[str, Any]]:
+        """
+        Build navigation segments from enriched coordinates and detected turns.
+        
+        Aggregates consecutive points traveling in the same direction/road
+        into navigation segments suitable for turn-by-turn instructions.
+        
+        Args:
+            coordinates: List of enriched coordinates with bearings computed
+            turns: List of detected turns
+            
+        Returns:
+            List of navigation segment dictionaries
+        """
+        from .models import NavigationSegment
+        
+        if len(coordinates) < 2:
+            return []
+        
+        segments: list[NavigationSegment] = []
+        
+        # Build a map of turn indices for quick lookup
+        turn_indices: dict[int, Turn] = {}
+        for turn in turns:
+            # Find the closest coordinate index for this turn
+            min_dist = float('inf')
+            closest_idx = 0
+            for i, coord in enumerate(coordinates):
+                dist = haversine_distance(
+                    turn.latitude, turn.longitude,
+                    coord.latitude, coord.longitude
+                )
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_idx = i
+            turn_indices[closest_idx] = turn
+        
+        # Build segments between turns
+        current_start = 0
+        current_road = self._get_road_name(coordinates[0])
+        current_direction = coordinates[0].direction
+        
+        for i in range(1, len(coordinates)):
+            coord = coordinates[i]
+            road = self._get_road_name(coord)
+            
+            # Check if we hit a turn or road change
+            is_turn = i in turn_indices
+            road_changed = road and current_road and road != current_road
+            
+            if is_turn or road_changed:
+                # Compute segment distance
+                distance = self._compute_segment_distance(coordinates, current_start, i)
+                
+                # Determine movement type based on turn
+                movement_type = "straight"
+                turn_angle = None
+                if i in turn_indices:
+                    turn = turn_indices[i]
+                    movement_type = self._turn_to_movement_type(turn)
+                    turn_angle = turn.angle
+                
+                segment = NavigationSegment(
+                    start_index=current_start,
+                    end_index=i,
+                    road_name=current_road,
+                    direction=current_direction,
+                    distance_m=distance,
+                    movement_type=movement_type,
+                    turn_angle=turn_angle,
+                )
+                segments.append(segment)
+                
+                # Start new segment
+                current_start = i
+                current_road = road if road else current_road
+                current_direction = coord.direction
+        
+        # Add final segment
+        if current_start < len(coordinates) - 1:
+            distance = self._compute_segment_distance(
+                coordinates, current_start, len(coordinates) - 1
+            )
+            segment = NavigationSegment(
+                start_index=current_start,
+                end_index=len(coordinates) - 1,
+                road_name=current_road,
+                direction=current_direction,
+                distance_m=distance,
+                movement_type="straight",
+            )
+            segments.append(segment)
+        
+        # Merge very short consecutive segments on the same road
+        merged_segments = self._merge_short_segments(segments)
+        
+        return [self._segment_to_dict(s) for s in merged_segments]
+    
+    def _get_road_name(self, coord: EnrichedCoordinate) -> str | None:
+        """Extract road name from enriched coordinate."""
+        if coord.location and coord.location.road_name:
+            return coord.location.road_name
+        return None
+    
+    def _compute_segment_distance(
+        self,
+        coordinates: list[EnrichedCoordinate],
+        start_idx: int,
+        end_idx: int,
+    ) -> float:
+        """Compute total distance of a segment."""
+        total = 0.0
+        for i in range(start_idx + 1, end_idx + 1):
+            if coordinates[i].distance_from_prev:
+                total += coordinates[i].distance_from_prev
+        return total
+    
+    def _turn_to_movement_type(self, turn: Turn) -> str:
+        """Convert turn to movement type string."""
+        if turn.direction == TurnDirection.U_TURN:
+            return "u_turn"
+        elif turn.direction == TurnDirection.LEFT:
+            if turn.angle < 45:
+                return "slight_left"
+            return "turn_left"
+        elif turn.direction == TurnDirection.RIGHT:
+            if turn.angle < 45:
+                return "slight_right"
+            return "turn_right"
+        return "straight"
+    
+    def _merge_short_segments(
+        self,
+        segments: list,
+        min_distance_m: float = 50.0,
+    ) -> list:
+        """Merge consecutive short segments on the same road."""
+        if len(segments) <= 1:
+            return segments
+        
+        merged = []
+        current = segments[0]
+        
+        for next_seg in segments[1:]:
+            # Merge if same road and current segment is short
+            same_road = current.road_name == next_seg.road_name
+            is_short = current.distance_m < min_distance_m
+            is_straight = current.movement_type == "straight"
+            
+            if same_road and is_short and is_straight:
+                # Extend current segment
+                current.end_index = next_seg.end_index
+                current.distance_m += next_seg.distance_m
+                current.movement_type = next_seg.movement_type
+                current.turn_angle = next_seg.turn_angle
+            else:
+                merged.append(current)
+                current = next_seg
+        
+        merged.append(current)
+        return merged
+    
+    def _segment_to_dict(self, segment) -> dict[str, Any]:
+        """Convert NavigationSegment to dictionary."""
+        return {
+            "start_index": segment.start_index,
+            "end_index": segment.end_index,
+            "road_name": segment.road_name,
+            "direction": segment.direction,
+            "distance_m": round(segment.distance_m),
+            "movement_type": segment.movement_type,
+            "turn_angle": round(segment.turn_angle) if segment.turn_angle else None,
+        }
