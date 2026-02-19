@@ -1,0 +1,14 @@
+usage: trip-verbalizer [-h] [-c CONFIG] [-o OUTPUT]
+                       [--json-output JSON_OUTPUT]
+                       [--context CONTEXT] [--mock-llm] [--long]
+                       [--geocode-rate GEOCODE_RATE] [-d] [-v] [-q]
+                       [--version]
+                       trip_file
+usage: trip-verbalizer [-h] [-c CONFIG] [-o OUTPUT]
+                       [--json-output JSON_OUTPUT]
+                       [--context CONTEXT] [--mock-llm] [--long]
+                       [--geocode-rate GEOCODE_RATE] [-d] [-v] [-q]
+                       [--version]
+                       trip_file
+trip-verbalizer: error: unrecognized arguments: -m trip_verbalizer.main New_data/Trip1.json
+trip-verbalizer: error: unrecognized arguments: -m trip_verbalizer.main New_data/Trip1.json

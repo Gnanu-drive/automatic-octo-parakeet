@@ -46,9 +46,16 @@ def create_httpx_client(
         "follow_redirects": True,
     }
     
-    # Add proxy if configured
+    # Add proxy if configured - use mounts for per-protocol proxies
     if config.proxy.is_configured:
-        client_kwargs["proxy"] = config.proxy.get_proxy_dict()
+        proxy_dict = config.proxy.get_proxy_dict()
+        if proxy_dict:
+            # httpx 0.25+ uses mounts for per-protocol proxies
+            # Use AsyncHTTPTransport for async clients
+            mounts = {}
+            for protocol, proxy_url in proxy_dict.items():
+                mounts[protocol] = httpx.AsyncHTTPTransport(proxy=proxy_url)
+            client_kwargs["mounts"] = mounts
     
     # Merge with user kwargs
     client_kwargs.update(kwargs)
@@ -81,9 +88,16 @@ def create_sync_httpx_client(
         "follow_redirects": True,
     }
     
+    # Add proxy if configured - use mounts for per-protocol proxies
     if config.proxy.is_configured:
-        client_kwargs["proxy"] = config.proxy.get_proxy_dict()
-    
+        proxy_dict = config.proxy.get_proxy_dict()
+        if proxy_dict:
+            # httpx 0.25+ uses mounts for per-protocol proxies
+            mounts = {}
+            for protocol, proxy_url in proxy_dict.items():
+                mounts[protocol] = httpx.HTTPTransport(proxy=proxy_url)
+            client_kwargs["mounts"] = mounts
+
     client_kwargs.update(kwargs)
     
     return httpx.Client(**client_kwargs)
