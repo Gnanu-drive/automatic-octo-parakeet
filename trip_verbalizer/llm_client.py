@@ -450,38 +450,111 @@ class MockLLMClient(LLMClient):
         """Generate mock response based on prompt content."""
         logger.info("🎭 Mock LLM generating response")
         
-        # Extract some context from the prompt for more realistic mock
-        prompt_lower = prompt.lower()
+        # Extract trip details from the prompt
+        return self._generate_trip_narration(prompt)
+    
+    def _extract_field(self, prompt: str, field: str) -> str:
+        """Extract a field value from the prompt."""
+        import re
+        # Try patterns like "Field: value" or "- Field: value"
+        patterns = [
+            rf'^{field}:\s*([^\n]+)',  # At start of line
+            rf'\n{field}:\s*([^\n]+)',  # After newline
+            rf'- {field}:\s*([^\n]+)',
+            rf'\*\*{field}\*\*:\s*([^\n]+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, prompt, re.IGNORECASE | re.MULTILINE)
+            if match:
+                return match.group(1).strip()
+        return ""
+    
+    def _extract_events(self, prompt: str) -> list[str]:
+        """Extract events from the prompt."""
+        import re
+        events = []
+        # Look for event patterns
+        event_pattern = r'Event[:\s]+([^\n]+)|event_type[:\s]+([^\n]+)'
+        for match in re.finditer(event_pattern, prompt, re.IGNORECASE):
+            event = match.group(1) or match.group(2)
+            if event:
+                events.append(event.strip())
+        return events
+    
+    def _generate_trip_narration(self, prompt: str) -> str:
+        """Generate a contextual trip narration using prompt data."""
+        # Extract key information from the prompt
+        # The prompt format uses "Start:" and "End:" for locations
+        start_location = self._extract_field(prompt, "Start")
+        end_location = self._extract_field(prompt, "End")
+        duration = self._extract_field(prompt, "Duration")
+        distance = self._extract_field(prompt, "Distance")
+        avg_speed = self._extract_field(prompt, "Average Speed")
+        max_speed = self._extract_field(prompt, "Maximum Speed") or self._extract_field(prompt, "Max Speed")
+        start_time = self._extract_field(prompt, "Date")
+        direction = self._extract_field(prompt, "General Direction")
         
-        if "trip" in prompt_lower or "journey" in prompt_lower:
-            return self._generate_trip_narration()
+        # Build contextual narration
+        parts = []
+        
+        # Opening with start location
+        if start_location and start_location.lower() != "unknown":
+            parts.append(f"The journey began from {start_location}")
+            if start_time:
+                parts.append(f" on {start_time}")
         else:
-            return self._generate_generic_response()
-    
-    def _generate_trip_narration(self) -> str:
-        """Generate a mock trip narration."""
-        return (
-            "The journey began on a clear morning as the driver departed from their "
-            "starting location. The route took them through a mix of urban streets "
-            "and suburban roads. Throughout the trip, the driver maintained a steady "
-            "pace, with occasional stops at traffic signals.\n\n"
-            "The driving style was generally cautious, with smooth acceleration and "
-            "gradual braking patterns. There were a few instances of moderate speed "
-            "variations as the road conditions changed. The driver navigated several "
-            "turns and intersections with care.\n\n"
-            "As the trip progressed, the traffic conditions varied from light to "
-            "moderate. The driver adapted their speed accordingly, showing good "
-            "awareness of the surrounding environment. The journey concluded safely "
-            "at the destination after covering the planned route."
+            parts.append("The journey began")
+        parts.append(".\n\n")
+        
+        # Movement and direction
+        if direction:
+            parts.append(f"The driver headed {direction.lower()}")
+        else:
+            parts.append("The driver proceeded along the route")
+        
+        if distance:
+            parts.append(f", covering a distance of {distance}")
+        
+        if duration:
+            parts.append(f" over {duration}")
+        
+        parts.append(". ")
+        
+        # Speed information
+        if avg_speed:
+            parts.append(f"The average speed maintained was {avg_speed}")
+            if max_speed:
+                parts.append(f", with a peak speed of {max_speed}")
+            parts.append(". ")
+        
+        parts.append("\n\n")
+        
+        # Driving behavior
+        parts.append(
+            "Throughout the trip, the driver maintained a steady pace with smooth "
+            "acceleration and gradual braking patterns. The driving style showed "
+            "good awareness of road conditions and traffic."
         )
-    
-    def _generate_generic_response(self) -> str:
-        """Generate a generic mock response."""
-        return (
-            "The driver started the journey and traveled through the route. "
-            "The trip included various speed changes and turns along the way. "
-            "The driver maintained generally safe driving behavior throughout the journey."
-        )
+        
+        parts.append("\n\n")
+        
+        # Ending with destination
+        if end_location and end_location.lower() != "unknown":
+            parts.append(f"The journey concluded safely at {end_location}")
+        else:
+            parts.append("The journey concluded safely at the destination")
+        
+        # Add route summary if both locations are known
+        if end_location and start_location and end_location.lower() != "unknown" and start_location.lower() != "unknown":
+            # Extract just the first part of each location for brevity
+            start_short = start_location.split(',')[0].strip()
+            end_short = end_location.split(',')[0].strip()
+            if start_short != end_short:
+                parts.append(f", completing the route from {start_short} to {end_short}")
+        
+        parts.append(".")
+        
+        return "".join(parts)
     
     async def chat_completion(
         self,
